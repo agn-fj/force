@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -91,6 +92,8 @@ type ForceMetadataDeployProblem struct {
 type ForceMetadataQueryElement struct {
 	Name    string
 	Members []string
+	AllowsWildcard bool //jwf-hack
+	FolderTypeName string //jwf-hack
 }
 
 type ForceMetadataQuery []ForceMetadataQueryElement
@@ -1041,9 +1044,35 @@ func (fm *ForceMetadata) Retrieve(query ForceMetadataQuery) (files ForceMetadata
 	types := ""
 	for _, element := range query {
 		members := ""
-		for _, member := range element.Members {
-			members += fmt.Sprintf(soapTypeMembers, member)
-		}
+
+			//---------------------------
+			if element.AllowsWildcard {
+
+				for _, member := range element.Members {
+					members += fmt.Sprintf(soapTypeMembers, member)
+				}
+
+			} else {
+
+				//fmt.Println("meta.Retrieve 1.4: wild = ", element.AllowsWildcard)
+
+				//get all folder names for this type
+				var folderNames []string
+				folderNames, err = fm.getFolderNames(element.FolderTypeName)
+				fmt.Println(folderNames)
+
+				//items
+				var folderItems []string
+				for _, fldrNm := range folderNames {
+					folderItems, err = fm.getFolderItems(element.Name, fldrNm)
+					for _, fldrItm := range folderItems {
+						members += fmt.Sprintf(soapTypeMembers, fldrItm)
+					}
+				}
+
+			}
+
+		//adds everything to pkg file
 		types += fmt.Sprintf(soapType, element.Name, members)
 	}
 	body, err := fm.soapExecute("retrieve", fmt.Sprintf(soap, apiVersionNumber, types))
@@ -1071,6 +1100,7 @@ func (fm *ForceMetadata) Retrieve(query ForceMetadataQuery) (files ForceMetadata
 	}
 	return
 }
+
 
 func (fm *ForceMetadata) RetrievePackage(packageName string) (files ForceMetadataFiles, err error) {
 	soap := `
@@ -1105,7 +1135,12 @@ func (fm *ForceMetadata) RetrievePackage(packageName string) (files ForceMetadat
 	return
 }
 
+
 func (fm *ForceMetadata) ListMetadata(query string) (res []byte, err error) {
+
+	//jwf-hack
+	fmt.Println("meta.ListMetadata:", query)
+
 	if strings.Contains(query, ":") {
 		newquery := strings.Split(query, ":")
 		return fm.soapExecute("listMetadata", fmt.Sprintf("<queries><type>%s</type><folder>%s</folder></queries>", newquery[0], newquery[1]))
@@ -1146,4 +1181,72 @@ func (fm *ForceMetadata) soapExecute(action, query string) (response []byte, err
 	soap := NewSoap(url, "http://soap.sforce.com/2006/04/metadata", fm.Force.Credentials.AccessToken)
 	response, err = soap.Execute(action, query)
 	return
+}
+
+
+func (fm *ForceMetadata) getFolderNames(folderTypeName string) (folderNames []string, err error) {
+
+	//works - all types verified. returns list of folder names.
+	// - Dashboard, Document, EmailTemplate, Report.
+	//body, err := fm.ListMetadata("DashboardFolder")
+	//body, err := fm.ListMetadata("DocumentFolder")
+	//body, err := fm.ListMetadata("EmailFolder")
+	//body, err := fm.ListMetadata("ReportFolder")
+
+	//works - this call returns all reports in folder
+	//body, err := fm.ListMetadata("Report:DTC_OAB_Reports")
+	body, err := fm.ListMetadata(folderTypeName)
+
+	if err != nil {
+		ErrorAndExit(err.Error())
+	}
+
+	var res struct {
+		Response ListMetadataResponse `xml:"Body>listMetadataResponse"`
+	}
+
+	if err = xml.Unmarshal(body, &res); err != nil {
+		ErrorAndExit(err.Error())
+	}
+
+	var folderNms []string
+
+	sort.Sort(ByFullName(res.Response.Result))
+	for _, result := range res.Response.Result {
+		fmt.Println("getFolderNames:", result.Type, "-", result.FullName)
+		folderNms = append(folderNms, result.FullName)
+	}
+
+	return folderNms, err
+}
+
+func (fm *ForceMetadata) getFolderItems(folderTypeName string, folderName string) (folderItems []string, err error) {
+
+	fmt.Println("getFolderItems called:", folderTypeName, folderName)
+
+	//works - this call returns all reports in folder
+	//body, err := fm.ListMetadata("Report:DTC_OAB_Reports")
+	body, err := fm.ListMetadata(folderTypeName + ":" + folderName)
+
+	if err != nil {
+		ErrorAndExit(err.Error())
+	}
+
+	var res struct {
+		Response ListMetadataResponse `xml:"Body>listMetadataResponse"`
+	}
+
+	if err = xml.Unmarshal(body, &res); err != nil {
+		ErrorAndExit(err.Error())
+	}
+
+	var folderItms []string
+
+	sort.Sort(ByFullName(res.Response.Result))
+	for _, result := range res.Response.Result {
+		fmt.Println("getFolderItems:", result.Type, "-", result.FullName)
+		folderItms = append(folderItms, result.FullName)
+	}
+
+	return folderItms, err
 }

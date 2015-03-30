@@ -215,12 +215,13 @@ func runFetch(cmd *Command, args []string) {
 			}
 		}
 	} else {
+		//jwf-hack; new args
 		query := ForceMetadataQuery{}
 		if len(metadataName) > 0 {
-			mq := ForceMetadataQueryElement{metadataType, metadataName}
+			mq := ForceMetadataQueryElement{metadataType, metadataName, true, ""}
 			query = append(query, mq)
 		} else {
-			mq := ForceMetadataQueryElement{metadataType, []string{"*"}}
+			mq := ForceMetadataQueryElement{metadataType, []string{"*"}, true, ""}
 			query = append(query, mq)
 		}
 		files, err = force.Metadata.Retrieve(query)
