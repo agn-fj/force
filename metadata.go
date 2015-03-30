@@ -92,7 +92,6 @@ type ForceMetadataDeployProblem struct {
 type ForceMetadataQueryElement struct {
 	Name           string
 	Members        []string
-	AllowsWildcard bool   //jwf-hack
 	FolderTypeName string //jwf-hack
 }
 
@@ -1042,37 +1041,33 @@ func (fm *ForceMetadata) Retrieve(query ForceMetadataQuery) (files ForceMetadata
 	`
 	soapTypeMembers := `<members>%s</members>`
 	types := ""
+
 	for _, element := range query {
 		members := ""
 
-		//---------------------------
-		if element.AllowsWildcard {
+		if element.FolderTypeName != "" {
 
-			for _, member := range element.Members {
-				members += fmt.Sprintf(soapTypeMembers, member)
-			}
-
-		} else {
-
-			//fmt.Println("meta.Retrieve 1.4: wild = ", element.AllowsWildcard)
-
-			//get all folder names for this type
+			//get folder names for this metadata type
 			var folderNames []string
-			folderNames, err = fm.getFolderNames(element.FolderTypeName)
-			fmt.Println(folderNames)
+			folderNames, err = fm.ListFolderNames(element.FolderTypeName)
 
-			//items
+			//get items in folders
 			var folderItems []string
 			for _, fldrNm := range folderNames {
-				folderItems, err = fm.getFolderItems(element.Name, fldrNm)
+				folderItems, err = fm.ListFolderItems(element.Name, fldrNm)
 				for _, fldrItm := range folderItems {
 					members += fmt.Sprintf(soapTypeMembers, fldrItm)
 				}
 			}
 
+		} else {
+
+			for _, member := range element.Members {
+				members += fmt.Sprintf(soapTypeMembers, member)
+			}
+
 		}
 
-		//adds everything to pkg file
 		types += fmt.Sprintf(soapType, element.Name, members)
 	}
 	body, err := fm.soapExecute("retrieve", fmt.Sprintf(soap, apiVersionNumber, types))
@@ -1136,9 +1131,6 @@ func (fm *ForceMetadata) RetrievePackage(packageName string) (files ForceMetadat
 
 func (fm *ForceMetadata) ListMetadata(query string) (res []byte, err error) {
 
-	//jwf-hack
-	fmt.Println("meta.ListMetadata:", query)
-
 	if strings.Contains(query, ":") {
 		newquery := strings.Split(query, ":")
 		return fm.soapExecute("listMetadata", fmt.Sprintf("<queries><type>%s</type><folder>%s</folder></queries>", newquery[0], newquery[1]))
@@ -1181,17 +1173,8 @@ func (fm *ForceMetadata) soapExecute(action, query string) (response []byte, err
 	return
 }
 
-func (fm *ForceMetadata) getFolderNames(folderTypeName string) (folderNames []string, err error) {
+func (fm *ForceMetadata) ListFolderNames(folderTypeName string) (folderNames []string, err error) {
 
-	//works - all types verified. returns list of folder names.
-	// - Dashboard, Document, EmailTemplate, Report.
-	//body, err := fm.ListMetadata("DashboardFolder")
-	//body, err := fm.ListMetadata("DocumentFolder")
-	//body, err := fm.ListMetadata("EmailFolder")
-	//body, err := fm.ListMetadata("ReportFolder")
-
-	//works - this call returns all reports in folder
-	//body, err := fm.ListMetadata("Report:DTC_OAB_Reports")
 	body, err := fm.ListMetadata(folderTypeName)
 
 	if err != nil {
@@ -1206,23 +1189,19 @@ func (fm *ForceMetadata) getFolderNames(folderTypeName string) (folderNames []st
 		ErrorAndExit(err.Error())
 	}
 
-	var folderNms []string
-
 	sort.Sort(ByFullName(res.Response.Result))
 	for _, result := range res.Response.Result {
 		fmt.Println("getFolderNames:", result.Type, "-", result.FullName)
-		folderNms = append(folderNms, result.FullName)
+		folderNames = append(folderNames, result.FullName)
 	}
 
-	return folderNms, err
+	return
 }
 
-func (fm *ForceMetadata) getFolderItems(folderTypeName string, folderName string) (folderItems []string, err error) {
+func (fm *ForceMetadata) ListFolderItems(folderTypeName string, folderName string) (folderItems []string, err error) {
 
 	fmt.Println("getFolderItems called:", folderTypeName, folderName)
 
-	//works - this call returns all reports in folder
-	//body, err := fm.ListMetadata("Report:DTC_OAB_Reports")
 	body, err := fm.ListMetadata(folderTypeName + ":" + folderName)
 
 	if err != nil {
@@ -1237,13 +1216,12 @@ func (fm *ForceMetadata) getFolderItems(folderTypeName string, folderName string
 		ErrorAndExit(err.Error())
 	}
 
-	var folderItms []string
-
 	sort.Sort(ByFullName(res.Response.Result))
 	for _, result := range res.Response.Result {
 		fmt.Println("getFolderItems:", result.Type, "-", result.FullName)
-		folderItms = append(folderItms, result.FullName)
+		folderItems = append(folderItems, result.FullName)
 	}
 
-	return folderItms, err
+	return
+
 }

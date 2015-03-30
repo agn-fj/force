@@ -218,10 +218,10 @@ func runFetch(cmd *Command, args []string) {
 		//jwf-hack; new args
 		query := ForceMetadataQuery{}
 		if len(metadataName) > 0 {
-			mq := ForceMetadataQueryElement{metadataType, metadataName, true, ""}
+			mq := ForceMetadataQueryElement{metadataType, metadataName, ""}
 			query = append(query, mq)
 		} else {
-			mq := ForceMetadataQueryElement{metadataType, []string{"*"}, true, ""}
+			mq := ForceMetadataQueryElement{metadataType, []string{"*"}, ""}
 			query = append(query, mq)
 		}
 		files, err = force.Metadata.Retrieve(query)
