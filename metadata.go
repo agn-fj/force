@@ -90,9 +90,9 @@ type ForceMetadataDeployProblem struct {
 }
 
 type ForceMetadataQueryElement struct {
-	Name    string
-	Members []string
-	AllowsWildcard bool //jwf-hack
+	Name           string
+	Members        []string
+	AllowsWildcard bool   //jwf-hack
 	FolderTypeName string //jwf-hack
 }
 
@@ -1045,32 +1045,32 @@ func (fm *ForceMetadata) Retrieve(query ForceMetadataQuery) (files ForceMetadata
 	for _, element := range query {
 		members := ""
 
-			//---------------------------
-			if element.AllowsWildcard {
+		//---------------------------
+		if element.AllowsWildcard {
 
-				for _, member := range element.Members {
-					members += fmt.Sprintf(soapTypeMembers, member)
-				}
-
-			} else {
-
-				//fmt.Println("meta.Retrieve 1.4: wild = ", element.AllowsWildcard)
-
-				//get all folder names for this type
-				var folderNames []string
-				folderNames, err = fm.getFolderNames(element.FolderTypeName)
-				fmt.Println(folderNames)
-
-				//items
-				var folderItems []string
-				for _, fldrNm := range folderNames {
-					folderItems, err = fm.getFolderItems(element.Name, fldrNm)
-					for _, fldrItm := range folderItems {
-						members += fmt.Sprintf(soapTypeMembers, fldrItm)
-					}
-				}
-
+			for _, member := range element.Members {
+				members += fmt.Sprintf(soapTypeMembers, member)
 			}
+
+		} else {
+
+			//fmt.Println("meta.Retrieve 1.4: wild = ", element.AllowsWildcard)
+
+			//get all folder names for this type
+			var folderNames []string
+			folderNames, err = fm.getFolderNames(element.FolderTypeName)
+			fmt.Println(folderNames)
+
+			//items
+			var folderItems []string
+			for _, fldrNm := range folderNames {
+				folderItems, err = fm.getFolderItems(element.Name, fldrNm)
+				for _, fldrItm := range folderItems {
+					members += fmt.Sprintf(soapTypeMembers, fldrItm)
+				}
+			}
+
+		}
 
 		//adds everything to pkg file
 		types += fmt.Sprintf(soapType, element.Name, members)
@@ -1100,7 +1100,6 @@ func (fm *ForceMetadata) Retrieve(query ForceMetadataQuery) (files ForceMetadata
 	}
 	return
 }
-
 
 func (fm *ForceMetadata) RetrievePackage(packageName string) (files ForceMetadataFiles, err error) {
 	soap := `
@@ -1134,7 +1133,6 @@ func (fm *ForceMetadata) RetrievePackage(packageName string) (files ForceMetadat
 	}
 	return
 }
-
 
 func (fm *ForceMetadata) ListMetadata(query string) (res []byte, err error) {
 
@@ -1182,7 +1180,6 @@ func (fm *ForceMetadata) soapExecute(action, query string) (response []byte, err
 	response, err = soap.Execute(action, query)
 	return
 }
-
 
 func (fm *ForceMetadata) getFolderNames(folderTypeName string) (folderNames []string, err error) {
 
