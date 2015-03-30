@@ -1,0 +1,3 @@
+export.go - better way to init structs?
+ - new? http://golang.org/doc/effective_go.html#allocation_new
+ - read in json file of types?
