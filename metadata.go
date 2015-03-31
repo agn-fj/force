@@ -90,9 +90,9 @@ type ForceMetadataDeployProblem struct {
 }
 
 type ForceMetadataQueryElement struct {
-	Name           string
-	Members        []string
-	FolderTypeName string //jwf-hack
+	Name    string
+	Members []string
+	//AllowsWildcard bool
 }
 
 type ForceMetadataQuery []ForceMetadataQueryElement
@@ -1044,19 +1044,19 @@ func (fm *ForceMetadata) Retrieve(query ForceMetadataQuery) (files ForceMetadata
 
 	for _, element := range query {
 		members := ""
-
-		if element.FolderTypeName != "" {
+		folderTypeName := fm.GetFolderTypeName(element.Name)
+		if folderTypeName != "" {
 
 			//get folder names for this metadata type
 			var folderNames []string
-			folderNames, err = fm.ListFolderNames(element.FolderTypeName)
+			folderNames, err = fm.ListFolderNames(folderTypeName)
 
 			//get items in folders
 			var folderItems []string
-			for _, fldrNm := range folderNames {
-				folderItems, err = fm.ListFolderItems(element.Name, fldrNm)
-				for _, fldrItm := range folderItems {
-					members += fmt.Sprintf(soapTypeMembers, fldrItm)
+			for _, flN := range folderNames {
+				folderItems, err = fm.ListFolderItems(element.Name, flN)
+				for _, flI := range folderItems {
+					members += fmt.Sprintf(soapTypeMembers, flI)
 				}
 			}
 
@@ -1176,52 +1176,50 @@ func (fm *ForceMetadata) soapExecute(action, query string) (response []byte, err
 func (fm *ForceMetadata) ListFolderNames(folderTypeName string) (folderNames []string, err error) {
 
 	body, err := fm.ListMetadata(folderTypeName)
-
 	if err != nil {
 		ErrorAndExit(err.Error())
 	}
-
 	var res struct {
 		Response ListMetadataResponse `xml:"Body>listMetadataResponse"`
 	}
-
 	if err = xml.Unmarshal(body, &res); err != nil {
 		ErrorAndExit(err.Error())
 	}
-
 	sort.Sort(ByFullName(res.Response.Result))
 	for _, result := range res.Response.Result {
-		fmt.Println("getFolderNames:", result.Type, "-", result.FullName)
 		folderNames = append(folderNames, result.FullName)
 	}
-
 	return
 }
 
 func (fm *ForceMetadata) ListFolderItems(folderTypeName string, folderName string) (folderItems []string, err error) {
-
-	fmt.Println("getFolderItems called:", folderTypeName, folderName)
-
 	body, err := fm.ListMetadata(folderTypeName + ":" + folderName)
-
 	if err != nil {
 		ErrorAndExit(err.Error())
 	}
-
 	var res struct {
 		Response ListMetadataResponse `xml:"Body>listMetadataResponse"`
 	}
-
 	if err = xml.Unmarshal(body, &res); err != nil {
 		ErrorAndExit(err.Error())
 	}
-
 	sort.Sort(ByFullName(res.Response.Result))
 	for _, result := range res.Response.Result {
-		fmt.Println("getFolderItems:", result.Type, "-", result.FullName)
 		folderItems = append(folderItems, result.FullName)
 	}
-
 	return
+}
 
+func (fm *ForceMetadata) GetFolderTypeName(typeName string) string {
+	switch typeName {
+	case "Dashboard":
+		return "DashboardFolder"
+	case "Document":
+		return "DocumentFolder"
+	case "EmailTemplate":
+		return "EmailFolder"
+	case "Report":
+		return "ReportFolder"
+	}
+	return ""
 }

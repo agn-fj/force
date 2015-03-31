@@ -1,3 +1,20 @@
 export.go - better way to init structs?
  - new? http://golang.org/doc/effective_go.html#allocation_new
  - read in json file of types?
+
+Adding support for the following 4 non-wildcard types that the CLI currently exports:
+Dashboard
+Document
+EmailTemplate
+Report
+
+(Details on * vs. non-*: http://www.salesforce.com/us/developer/docs/api_meta/Content/meta_types_list.htm)
+ 
+Good:
+ - Works!
+ - People who were once mad about missing EmailTemplates can be happier
+ - The CLI may offer increased value for users looking to back up their org's metadata more fully
+
+Less Good:
+- Hardcoding the folder names into a new function (GetFolderTypeName) in export.go didn't feel great  
+- Neither does calling the api repeatedly - once for each folder
